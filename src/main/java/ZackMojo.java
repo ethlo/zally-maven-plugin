@@ -1,7 +1,28 @@
+/*-
+ * #%L
+ * zally-maven-plugin
+ * %%
+ * Copyright (C) 2021 Morten Haraldsen (ethlo)
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -34,10 +55,10 @@ public class ZackMojo extends AbstractMojo
     @Parameter(property = "ignore")
     private List<String> ignore;
 
-    @Parameter(property = "fail-on", defaultValue = "MUST,SHOULD")
+    @Parameter(property = "failOn")
     private List<Severity> failOn;
 
-    @Parameter(property = "result-file")
+    @Parameter(property = "resultFile")
     private String resultFile;
 
     @Parameter(property = "skip", defaultValue = "false")
@@ -51,15 +72,29 @@ public class ZackMojo extends AbstractMojo
     @Override
     public void execute() throws MojoFailureException
     {
+        if (skip)
+        {
+            getLog().info("Skipping execution as requested");
+            return;
+        }
+
         final Zack zack = new Zack();
         final List<RuleDetails> rules = zack.getRules();
 
         getLog().info("Validating file '" + source + "'");
 
-        getLog().info("Will fail build on errors of severity: " + failOn
-                .stream()
-                .map(Enum::name)
-                .collect(Collectors.joining(", ")));
+        if (!failOn.isEmpty())
+        {
+            getLog().info("Will fail build on errors of severity: " + failOn
+                    .stream()
+                    .map(Enum::name)
+                    .collect(Collectors.joining(", ")));
+        }
+        else
+        {
+            getLog().warn("Will never fail build due to errors. Adjust 'failOn' " +
+                    "property to fail on requested severities (" + Arrays.toString(Severity.values()) + ")");
+        }
 
         printIgnoredRulesInfo(rules);
 
