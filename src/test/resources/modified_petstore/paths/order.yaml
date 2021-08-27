@@ -1,0 +1,24 @@
+put:
+  summary: update order
+  operationId: updateOrder
+  x-acl:
+    type: Order
+    id: '#orderId'
+    permission: update
+  parameters:
+    - name: orderId
+      in: path
+      schema:
+        type: integer
+        format: int64
+      required: true
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          properties:
+
+  responses:
+    200:
+      description: Order updated
