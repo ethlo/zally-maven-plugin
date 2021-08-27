@@ -5,7 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.ethlo.zally</groupId>
     <artifactId>zally-maven-plugin</artifactId>
-    <description>Unofficial maven plugin using the core of Zally from Zalando for API validation</description>
+    <name>zally-maven-plugin</name>
+    <description>Unofficial maven plugin wrapping Zally from Zalando for OpenAPI 3.x validation</description>
     <version>1.0.0</version>
     <packaging>maven-plugin</packaging>
     <properties>
@@ -63,10 +64,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>3.2.0</version>
                 <configuration>
                     <additionalparam>-Xdoclint:none</additionalparam>
-                    <source>8</source>
+                    <source>11</source>
                 </configuration>
                 <executions>
                     <execution>
