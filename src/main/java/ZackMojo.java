@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,7 +13,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -33,8 +34,14 @@ public class ZackMojo extends AbstractMojo
     @Parameter(property = "ignore")
     private List<String> ignore;
 
+    @Parameter(property = "fail-on", defaultValue = "MUST,SHOULD")
+    private List<Severity> failOn;
+
     @Parameter(property = "result-file")
-    private String result;
+    private String resultFile;
+
+    @Parameter(property = "skip", defaultValue = "false")
+    private boolean skip;
 
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     private MavenProject project;
@@ -42,12 +49,17 @@ public class ZackMojo extends AbstractMojo
     private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
     @Override
-    public void execute() throws MojoExecutionException
+    public void execute() throws MojoFailureException
     {
         final Zack zack = new Zack();
         final List<RuleDetails> rules = zack.getRules();
 
-        getLog().info("Processing file '" + source + "'");
+        getLog().info("Validating file '" + source + "'");
+
+        getLog().info("Will fail build on errors of severity: " + failOn
+                .stream()
+                .map(Enum::name)
+                .collect(Collectors.joining(", ")));
 
         printIgnoredRulesInfo(rules);
 
@@ -67,6 +79,15 @@ public class ZackMojo extends AbstractMojo
         printErrors(resultsByViolationType);
 
         writeResults(results);
+
+        for (Severity severity : failOn)
+        {
+            final int size = Optional.ofNullable(resultsByViolationType.get(severity)).map(Collection::size).orElse(0);
+            if (size > 0)
+            {
+                throw new MojoFailureException("Failing build due to " + size + " errors with severity " + severity);
+            }
+        }
     }
 
     private void printErrors(Map<Severity, List<Result>> resultsByViolationType)
@@ -132,12 +153,14 @@ public class ZackMojo extends AbstractMojo
 
     private void writeResults(List<Result> results)
     {
-        if (result != null && !result.trim().equals(""))
+        if (resultFile != null && !resultFile.trim().equals(""))
         {
             try
             {
-                getLog().info("Writing result file to " + result);
-                Files.writeString(Paths.get(result), mapper.writeValueAsString(results));
+                getLog().info("");
+                getLog().info("Writing result file to " + resultFile);
+                getLog().info("");
+                Files.writeString(Paths.get(resultFile), mapper.writeValueAsString(results));
             }
             catch (IOException e)
             {

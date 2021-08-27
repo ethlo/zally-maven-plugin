@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.zalando.zally.core.CheckDetails;
 import org.zalando.zally.core.DefaultContext;
+import org.zalando.zally.core.JsonPointerLocator;
 import org.zalando.zally.core.Result;
 import org.zalando.zally.core.RuleDetails;
 import org.zalando.zally.core.RulesManager;
