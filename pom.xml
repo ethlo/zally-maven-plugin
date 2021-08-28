@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.ethlo.zally</groupId>
     <artifactId>zally-maven-plugin</artifactId>
     <name>zally-maven-plugin</name>
     <description>Unofficial maven plugin wrapping Zally from Zalando for OpenAPI 3.x validation</description>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
     <packaging>maven-plugin</packaging>
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -20,7 +20,7 @@
     <developers>
         <developer>
             <name>Morten Haraldsen</name>
-            <url>http://ethlo.com</url>
+            <url>https://ethlo.com</url>
         </developer>
     </developers>
     <build>
@@ -67,7 +67,6 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.2.0</version>
                 <configuration>
-                    <additionalparam>-Xdoclint:none</additionalparam>
                     <source>11</source>
                 </configuration>
                 <executions>
@@ -109,6 +108,11 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <excludes>
+                        <exclude>**/HelpMojo.class</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.eluder.coveralls</groupId>
@@ -176,11 +180,11 @@
     <licenses>
         <license>
             <name>The Apache Software License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
         </license>
     </licenses>
     <scm>
-        <url>http://github.com:ethlo/zally-maven-plugin</url>
+        <url>https://github.com:ethlo/zally-maven-plugin</url>
         <connection>scm:git:git@github.com:ethlo/zally-maven-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:ethlo/zally-maven-plugin.git</developerConnection>
     </scm>
@@ -188,7 +192,7 @@
         <repository>
             <id>sonatype-nexus-staging</id>
             <name>Nexus Release Repository</name>
-            <url>http://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
         <snapshotRepository>
             <id>sonatype-nexus-snapshots</id>
@@ -210,6 +214,7 @@
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
+            <!--suppress KotlinMavenPluginPhase -->
             <artifactId>kotlin-stdlib-jdk8</artifactId>
             <version>1.5.30-M1</version>
         </dependency>

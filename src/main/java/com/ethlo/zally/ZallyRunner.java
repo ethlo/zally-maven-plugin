@@ -1,4 +1,4 @@
-/*-
+package com.ethlo.zally;/*-
  * #%L
  * zally-maven-plugin
  * %%
@@ -7,9 +7,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,6 +17,7 @@
  * limitations under the License.
  * #L%
  */
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -26,7 +27,6 @@ import java.util.List;
 
 import org.zalando.zally.core.CheckDetails;
 import org.zalando.zally.core.DefaultContext;
-import org.zalando.zally.core.JsonPointerLocator;
 import org.zalando.zally.core.Result;
 import org.zalando.zally.core.RuleDetails;
 import org.zalando.zally.core.RulesManager;
@@ -37,11 +37,11 @@ import org.zalando.zally.rule.api.Violation;
 import com.typesafe.config.ConfigFactory;
 import io.swagger.v3.oas.models.OpenAPI;
 
-public class Zack
+public class ZallyRunner
 {
     private final RulesManager rulesManager;
 
-    public Zack()
+    public ZallyRunner()
     {
         this.rulesManager = RulesManager.Companion.fromClassLoader(ConfigFactory.load("rules-config.conf"));
     }

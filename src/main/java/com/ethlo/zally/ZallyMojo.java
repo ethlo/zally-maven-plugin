@@ -1,4 +1,4 @@
-/*-
+package com.ethlo.zally;/*-
  * #%L
  * zally-maven-plugin
  * %%
@@ -21,6 +21,7 @@
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,28 +47,28 @@ import org.zalando.zally.rule.api.Severity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
-@Mojo(name = "validate", defaultPhase = LifecyclePhase.COMPILE)
-public class ZackMojo extends AbstractMojo
+@Mojo(threadSafe = true, name = "validate", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
+public class ZallyMojo extends AbstractMojo
 {
-    @Parameter(required = true, defaultValue = "classpath:/api.yaml", property = "source")
+    private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+
+    @Parameter(required = true, defaultValue = "${project.basedir}/src/main/resources/api.yaml", property = "zally.source")
     private String source;
 
-    @Parameter(property = "ignore")
+    @Parameter(property = "zally.ignore")
     private List<String> ignore;
 
-    @Parameter(property = "failOn")
+    @Parameter(property = "zally.failOn")
     private List<Severity> failOn;
 
-    @Parameter(property = "resultFile")
+    @Parameter(property = "zally.resultFile")
     private String resultFile;
 
-    @Parameter(property = "skip", defaultValue = "false")
+    @Parameter(property = "zally.skip", defaultValue = "false")
     private boolean skip;
 
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     private MavenProject project;
-
-    private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
     @Override
     public void execute() throws MojoFailureException
@@ -78,8 +79,8 @@ public class ZackMojo extends AbstractMojo
             return;
         }
 
-        final Zack zack = new Zack();
-        final List<RuleDetails> rules = zack.getRules();
+        final ZallyRunner zallyRunner = new ZallyRunner();
+        final List<RuleDetails> rules = zallyRunner.getRules();
 
         getLog().info("Validating file '" + source + "'");
 
@@ -92,13 +93,13 @@ public class ZackMojo extends AbstractMojo
         }
         else
         {
-            getLog().warn("Will never fail build due to errors. Adjust 'failOn' " +
-                    "property to fail on requested severities (" + Arrays.toString(Severity.values()) + ")");
+            getLog().warn("No errors will fail the build, reporting only. Adjust 'failOn' " +
+                    "property to fail on requested severities:" + Arrays.toString(Severity.values()));
         }
 
         printIgnoredRulesInfo(rules);
 
-        final List<Result> results = validate(zack, source);
+        final List<Result> results = validate(zallyRunner, source);
 
         final Map<Severity, List<Result>> resultsByViolationType = results
                 .stream()
@@ -115,6 +116,7 @@ public class ZackMojo extends AbstractMojo
 
         writeResults(results);
 
+        // Check if we should halt the build due to validation errors
         for (Severity severity : failOn)
         {
             final int size = Optional.ofNullable(resultsByViolationType.get(severity)).map(Collection::size).orElse(0);
@@ -195,7 +197,9 @@ public class ZackMojo extends AbstractMojo
                 getLog().info("");
                 getLog().info("Writing result file to " + resultFile);
                 getLog().info("");
-                Files.writeString(Paths.get(resultFile), mapper.writeValueAsString(results));
+                final Path target = Paths.get(resultFile);
+                Files.createDirectories(target.getParent());
+                Files.writeString(target, mapper.writeValueAsString(results));
             }
             catch (IOException e)
             {
@@ -204,11 +208,11 @@ public class ZackMojo extends AbstractMojo
         }
     }
 
-    private List<Result> validate(Zack zack, String url)
+    private List<Result> validate(ZallyRunner zallyRunner, String url)
     {
         try
         {
-            return zack.validate(url);
+            return zallyRunner.validate(url);
         }
         catch (IOException e)
         {
