@@ -44,8 +44,12 @@ import org.zalando.zally.core.Result;
 import org.zalando.zally.core.RuleDetails;
 import org.zalando.zally.rule.api.Severity;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import edu.emory.mathcs.backport.java.util.Collections;
 
 @Mojo(threadSafe = true, name = "validate", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
 public class ZallyMojo extends AbstractMojo
@@ -70,6 +74,9 @@ public class ZallyMojo extends AbstractMojo
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     private MavenProject project;
 
+    @Parameter
+    private Map<String, String> ruleConfig;
+
     @Override
     public void execute() throws MojoFailureException
     {
@@ -79,8 +86,17 @@ public class ZallyMojo extends AbstractMojo
             return;
         }
 
-        final ZallyRunner zallyRunner = new ZallyRunner();
+        final Config config = parseConfigMap(ruleConfig);
+
+        final ZallyRunner zallyRunner = new ZallyRunner(config);
         final List<RuleDetails> rules = zallyRunner.getRules();
+
+        final boolean existsOnClassPath = getClass().getClassLoader().getResourceAsStream(source) != null;
+        final boolean existsOnFilesystem = Files.exists(Paths.get(source));
+        if (!existsOnClassPath && !existsOnFilesystem)
+        {
+            throw new MojoFailureException("The specified source file could not be found: " + source);
+        }
 
         getLog().info("Validating file '" + source + "'");
 
@@ -125,6 +141,24 @@ public class ZallyMojo extends AbstractMojo
                 throw new MojoFailureException("Failing build due to " + size + " errors with severity " + severity);
             }
         }
+    }
+
+    private Config parseConfigMap(Map<String, String> ruleConfig)
+    {
+        final Map<String, String> m = ruleConfig != null ? ruleConfig : Collections.emptyMap();
+        final Map<String, Map> configurations = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : m.entrySet())
+        {
+            try
+            {
+                configurations.put(e.getKey(), mapper.readValue(e.getValue(), Map.class));
+            }
+            catch (JsonProcessingException jsonProcessingException)
+            {
+                throw new UncheckedIOException("Unable to parse configuration for rule name " + e.getKey(), jsonProcessingException);
+            }
+        }
+        return ConfigFactory.parseMap(configurations);
     }
 
     private void printErrors(Map<Severity, List<Result>> resultsByViolationType)

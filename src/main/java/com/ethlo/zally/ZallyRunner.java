@@ -19,6 +19,7 @@ package com.ethlo.zally;/*-
  */
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Comparator;
@@ -34,16 +35,19 @@ import org.zalando.zally.rule.api.Check;
 import org.zalando.zally.rule.api.Context;
 import org.zalando.zally.rule.api.Violation;
 
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import io.swagger.v3.oas.models.OpenAPI;
 
 public class ZallyRunner
 {
     private final RulesManager rulesManager;
+    private final Config ruleConfigs;
 
-    public ZallyRunner()
+    public ZallyRunner(final Config ruleConfigs)
     {
-        this.rulesManager = RulesManager.Companion.fromClassLoader(ConfigFactory.load("rules-config.conf"));
+        this.ruleConfigs = ruleConfigs;
+        this.rulesManager = RulesManager.Companion.fromClassLoader(ruleConfigs.withFallback(ConfigFactory.load("rules-config.conf")));
     }
 
     public List<Result> validate(String url) throws IOException
@@ -54,8 +58,13 @@ public class ZallyRunner
         final List<Result> resultList = new LinkedList<>();
         for (RuleDetails ruleDetails : rulesManager.getRules())
         {
-            final Object instance = ruleDetails.getInstance();
-            for (Method method : instance.getClass().getDeclaredMethods())
+            final Object base = ruleDetails.getInstance();
+            final Class<?> ruleClass = base.getClass();
+            final String simpleName = ruleClass.getSimpleName();
+
+            final Object instance = ruleConfigs.hasPath(simpleName) ? createInstance(base.getClass(), ruleConfigs) : base;
+
+            for (Method method : ruleClass.getDeclaredMethods())
             {
                 final Check check = method.getAnnotation(Check.class);
                 if (check != null && method.getParameterTypes().length == 1 && method.getParameterTypes()[0] == Context.class)
@@ -91,6 +100,19 @@ public class ZallyRunner
 
         resultList.sort(Comparator.comparing(Result::getViolationType));
         return resultList;
+    }
+
+    private Object createInstance(Class<?> ruleClass, Config ruleConfig)
+    {
+        try
+        {
+            final Constructor<?> constructor = ruleClass.getConstructor(Config.class);
+            return constructor.newInstance(ruleConfig);
+        }
+        catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e)
+        {
+            throw new RuntimeException("Cannot instantiate rule " + ruleClass, e);
+        }
     }
 
     private void handleViolation(final List<Result> resultList, final CheckDetails details, Violation violation)

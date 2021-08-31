@@ -7,7 +7,7 @@
     <artifactId>zally-maven-plugin</artifactId>
     <name>zally-maven-plugin</name>
     <description>Unofficial maven plugin wrapping Zally from Zalando for OpenAPI 3.x validation</description>
-    <version>1.0.1</version>
+    <version>1.0.2-SNAPSHOT</version>
     <packaging>maven-plugin</packaging>
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
@@ -208,11 +208,6 @@
             <version>2.1.0</version>
         </dependency>
         <dependency>
-            <groupId>org.zalando</groupId>
-            <artifactId>zally-ruleset-zalando</artifactId>
-            <version>2.1.0</version>
-        </dependency>
-        <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <!--suppress KotlinMavenPluginPhase -->
             <artifactId>kotlin-stdlib-jdk8</artifactId>
@@ -238,6 +233,14 @@
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-project</artifactId>
             <version>2.2.1</version>
+        </dependency>
+        
+        <!-- TEST -->
+        <dependency>
+            <groupId>org.zalando</groupId>
+            <artifactId>zally-ruleset-zalando</artifactId>
+            <version>2.1.0</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
