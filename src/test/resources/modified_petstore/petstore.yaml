@@ -5,7 +5,7 @@ info:
   license:
     name: MIT
 servers:
-  - url: http://petstore.swagger.io/v1
+  - url: https://petstore.swagger.io/v1
 paths:
   /orders/{orderId}:
     $ref: './paths/order.yaml'
