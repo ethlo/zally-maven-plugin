@@ -22,14 +22,23 @@ package com.ethlo.zally;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.maven.plugin.MojoFailureException;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.zalando.zally.rule.api.Severity;
+import org.zalando.zally.ruleset.zalando.PluralizeResourceNamesRule;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ZallyMojoTest
 {
+    private final String url = "modified_petstore/petstore.yaml";
+
     @Test
     public void smokeTest() throws IllegalAccessException, IOException
     {
@@ -47,5 +56,43 @@ public class ZallyMojoTest
         {
 
         }
+    }
+
+    @Test
+    public void testConfigureRule() throws IllegalAccessException, IOException
+    {
+        final ZallyMojo mojo = new ZallyMojo();
+        FieldUtils.writeField(mojo, "failOn", Arrays.asList(Severity.MUST, Severity.SHOULD), true);
+        FieldUtils.writeField(mojo, "source", url, true);
+        FieldUtils.writeField(mojo, "ignore", Arrays.asList("104", "174"), true);
+        FieldUtils.writeField(mojo, "resultFile", Files.createTempFile("zally-maven-plugin", ".yaml").toString(), true);
+
+        final TreeMap<String, Object> pluralRuleConfig = new TreeMap<>();
+        pluralRuleConfig.put("whitelist", Arrays.asList("content", "delta"));
+
+        final Map<String, String> ruleConfigs = new LinkedHashMap<>();
+        final ObjectMapper mapper = new ObjectMapper();
+        ruleConfigs.put(PluralizeResourceNamesRule.class.getSimpleName(), mapper.writeValueAsString(pluralRuleConfig));
+        FieldUtils.writeField(mojo, "ruleConfig", ruleConfigs, true);
+
+        try
+        {
+            mojo.execute();
+        }
+        catch (MojoFailureException expected)
+        {
+
+        }
+    }
+
+    @Ignore
+    @Test
+    public void testRefs() throws IllegalAccessException, MojoFailureException
+    {
+        final ZallyMojo mojo = new ZallyMojo();
+        FieldUtils.writeField(mojo, "failOn", Arrays.asList(Severity.MUST, Severity.SHOULD), true);
+        FieldUtils.writeField(mojo, "source", url, true);
+        FieldUtils.writeField(mojo, "ignore", Arrays.asList("104", "174"), true);
+        mojo.execute();
     }
 }

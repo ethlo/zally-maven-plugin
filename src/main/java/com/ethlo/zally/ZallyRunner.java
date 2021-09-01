@@ -26,6 +26,8 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.fasterxml.jackson.core.JsonPointer;
+
 import org.zalando.zally.core.CheckDetails;
 import org.zalando.zally.core.DefaultContext;
 import org.zalando.zally.core.Result;
@@ -117,6 +119,10 @@ public class ZallyRunner
 
     private void handleViolation(final List<Result> resultList, final CheckDetails details, Violation violation)
     {
+        // TODO: Handle pointers better to make it easier to know where the error is
+        //final JsonPointer pointer = violation.getPointer();
+        //System.out.println(pointer.toString() + " - " + pointer.toString().replace("~1", "/"));
+
         final Result result = new Result(
                 details.getRule().id(),
                 details.getRuleSet().url(details.getRule()),
