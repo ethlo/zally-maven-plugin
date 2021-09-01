@@ -26,8 +26,6 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 
-import com.fasterxml.jackson.core.JsonPointer;
-
 import org.zalando.zally.core.CheckDetails;
 import org.zalando.zally.core.DefaultContext;
 import org.zalando.zally.core.Result;

@@ -64,7 +64,9 @@ public class ReportingMojo extends AbstractMojo
 
         getLog().info("Analyzing file '" + source + "'");
 
+        getLog().info("API hierarchy:");
         final String hierarchy = new ApiReporter(new OpenApiParser().parse(source)).render();
         Arrays.stream(hierarchy.split("\n")).forEach(line -> getLog().info(line));
+        getLog().info("");
     }
 }
