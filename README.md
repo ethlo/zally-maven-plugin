@@ -16,6 +16,7 @@ Unofficial maven plugin using [Zally](https://github.com/zalando/zally) for Open
 ## Usage
 
 ```xml
+
 <plugin>
     <groupId>com.ethlo.zally</groupId>
     <artifactId>zally-maven-plugin</artifactId>
@@ -29,12 +30,20 @@ Unofficial maven plugin using [Zally](https://github.com/zalando/zally) for Open
         <ignore>
             146,174,134
         </ignore>
+        <ruleConfig>
+            <PluralizeResourceNamesRule>
+                whitelist:
+                - current
+                - self
+            </PluralizeResourceNamesRule>
+        </ruleConfig>
         <!-- Write the result of the validation to file. Optional-->
         <resultFile>target/api_validation_result.yaml</resultFile>
     </configuration>
     <executions>
         <execution>
             <goals>
+                <goal>report</goal>
                 <goal>validate</goal>
             </goals>
         </execution>
