@@ -49,6 +49,14 @@ Unofficial maven plugin using [Zally](https://github.com/zalando/zally) for Open
             </goals>
         </execution>
     </executions>
+    <dependencies>
+        <dependency>
+            <!-- The pluggable rule-set you want to run -->
+            <groupId>org.zalando</groupId>
+            <artifactId>zally-ruleset-zalando</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+    </dependencies>
 </plugin>
 ```
 
