@@ -31,6 +31,7 @@ Unofficial maven plugin using [Zally](https://github.com/zalando/zally) for Open
             146,174,134
         </ignore>
         <ruleConfig>
+            <!-- NOTE: The rule elements' content can be written in JSON or YAML -->
             <PluralizeResourceNamesRule>
                 whitelist:
                 - current
