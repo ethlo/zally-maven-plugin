@@ -35,7 +35,6 @@ import org.junit.Test;
 import org.zalando.zally.rule.api.Severity;
 
 import com.ethlo.zally.rules.WhiteListedPluralizeNamesForArraysRule;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ZallyMojoTest
@@ -67,7 +66,7 @@ public class ZallyMojoTest
         final ZallyMojo mojo = new ZallyMojo();
         FieldUtils.writeField(mojo, "failOn", Arrays.asList(Severity.MUST, Severity.SHOULD), true);
         FieldUtils.writeField(mojo, "source", url, true);
-        FieldUtils.writeField(mojo, "skipRules", Arrays.asList("PluralizeNamesForArraysRule", "CommonFieldTypesRule", "SecureAllEndpointsWithScopesRule"), true);
+        FieldUtils.writeField(mojo, "skipRules", new TreeSet<>(Arrays.asList("PluralizeNamesForArraysRule", "CommonFieldTypesRule", "SecureAllEndpointsWithScopesRule")), true);
         FieldUtils.writeField(mojo, "resultFile", Files.createTempFile("zally-maven-plugin", ".yaml").toString(), true);
 
         final TreeMap<String, Object> pluralRuleConfig = new TreeMap<>();

@@ -27,9 +27,11 @@ Unofficial maven plugin using [Zally](https://github.com/zalando/zally) for Open
         <!-- The input file to validate -->
         <source>src/main/resources/openapi/api.yaml</source>
         <!--Ignore certain rules. Default is none -->
-        <ignore>
-            146,174,134
-        </ignore>
+        <skipRules>
+            <skipRule>CommonFieldTypesRule</skipRule>
+            <skipRule>SecureAllEndpointsWithScopesRule</skipRule>
+            <skipRule>NoVersionInUriRule</skipRule>
+        </skipRules>
         <ruleConfig>
             <!-- NOTE: The rule elements' content can be written in JSON or YAML -->
             <PluralizeResourceNamesRule>

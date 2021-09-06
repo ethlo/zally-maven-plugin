@@ -24,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -161,10 +160,12 @@ public class ZallyMojo extends AbstractMojo
         // Check if we should halt the build due to validation errors
         for (Severity severity : failOn)
         {
-            final int size = Optional.ofNullable(resultsBySeverity.get(severity)).map(Map::values).map(Collection::size).orElse(0);
+            final int size = Optional.ofNullable(resultsBySeverity.get(severity))
+                    .map(Map::size)
+                    .orElse(0);
             if (size > 0)
             {
-                throw new MojoFailureException("Failing build due to " + size + " errors with severity " + severity);
+                throw new MojoFailureException("Failing build due to errors with severity " + severity);
             }
         }
     }
@@ -188,7 +189,8 @@ public class ZallyMojo extends AbstractMojo
                                         + " - " + result.getPointer()))));
 
         printHeader("Rule violations (" + violations.size() + ")");
-        violations.forEach(v -> getLog().info(v));
+        violations.forEach(v -> getLog().warn(v));
+        getLog().warn("");
     }
 
     private void printHeader(String message)
@@ -216,6 +218,7 @@ public class ZallyMojo extends AbstractMojo
                 .stream()
                 .map(rule ->
                         rule.getRule().id() + " - "
+                                + rule.getInstance().getClass().getSimpleName() + " - "
                                 + rule.getRule().severity().name() + " - "
                                 + rule.getRule().title() + " - "
                                 + rule.getRuleSet().getUrl()).sorted()
