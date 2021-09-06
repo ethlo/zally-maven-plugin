@@ -27,10 +27,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -40,27 +43,25 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+import org.zalando.zally.core.CheckDetails;
 import org.zalando.zally.core.Result;
 import org.zalando.zally.core.RuleDetails;
 import org.zalando.zally.rule.api.Severity;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import edu.emory.mathcs.backport.java.util.Collections;
 
 @Mojo(threadSafe = true, name = "validate", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
 public class ZallyMojo extends AbstractMojo
 {
-    private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+    private final ObjectMapper mapper;
 
     @Parameter(required = true, defaultValue = "${project.basedir}/src/main/resources/api.yaml", property = "zally.source")
     private String source;
-
-    @Parameter(property = "zally.ignore")
-    private List<String> ignore;
 
     @Parameter(property = "zally.failOn")
     private List<Severity> failOn;
@@ -75,7 +76,16 @@ public class ZallyMojo extends AbstractMojo
     private MavenProject project;
 
     @Parameter
-    private Map<String, String> ruleConfig;
+    private Map<String, String> ruleConfigs;
+
+    @Parameter
+    private Set<String> skipRules;
+
+    public ZallyMojo()
+    {
+        mapper = new ObjectMapper(new YAMLFactory());
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+    }
 
     @Override
     public void execute() throws MojoFailureException
@@ -86,10 +96,9 @@ public class ZallyMojo extends AbstractMojo
             return;
         }
 
-        final Config config = parseConfigMap(ruleConfig);
+        final Config config = parseConfigMap(ruleConfigs).withFallback(ConfigFactory.load("reference"));
 
-        final ZallyRunner zallyRunner = new ZallyRunner(config);
-        final List<RuleDetails> rules = zallyRunner.getRules();
+        final ZallyRunner zallyRunner = new ZallyRunner(config, getLog());
 
         final boolean existsOnClassPath = getClass().getClassLoader().getResourceAsStream(source) != null;
         final boolean existsOnFilesystem = Files.exists(Paths.get(source));
@@ -98,7 +107,7 @@ public class ZallyMojo extends AbstractMojo
             throw new MojoFailureException("The specified source file could not be found: " + source);
         }
 
-        getLog().info("Validating file '" + source + "'");
+        printInfo("Validating file '" + source + "'");
 
         if (!failOn.isEmpty())
         {
@@ -113,29 +122,46 @@ public class ZallyMojo extends AbstractMojo
                     "property to fail on requested severities:" + Arrays.toString(Severity.values()));
         }
 
-        printIgnoredRulesInfo(rules);
+        printErrorDescriptionsWithLink(zallyRunner.getRules());
 
-        final List<Result> results = validate(zallyRunner, source);
+        printSkippedRulesInfo(zallyRunner.getRules());
+        final Map<CheckDetails, List<Result>> results = validate(zallyRunner, skipRules, source);
 
-        final Map<Severity, List<Result>> resultsByViolationType = results
-                .stream()
-                .filter(r -> !ignore.contains(r.getId()))
-                .collect(Collectors.groupingBy(Result::getViolationType, Collectors.mapping(result -> result, Collectors.toList())));
+        // Map results to severity
+        final Map<Severity, Map<CheckDetails, List<Result>>> resultsBySeverity = new LinkedHashMap<>();
+        results.forEach((details, resultList) ->
+        {
+            for (final Result result : resultList)
+            {
+                resultsBySeverity.compute(result.getViolationType(), (severity, resultsByDetail) ->
+                {
+                    if (resultsByDetail == null)
+                    {
+                        resultsByDetail = new LinkedHashMap<>();
+                    }
+                    resultsByDetail.compute(details, (cd, rs) ->
+                    {
+                        if (rs == null)
+                        {
+                            rs = new LinkedList<>();
+                        }
+                        rs.add(result);
+                        return rs;
+                    });
 
-        final Map<String, List<Result>> errorsOccurred = results
-                .stream()
-                .collect(Collectors.groupingBy(Result::getId, Collectors.mapping(result -> result, Collectors.toList())));
+                    return resultsByDetail;
+                });
+            }
+        });
 
-        printErrorDescriptionsWithLink(errorsOccurred);
-
-        printErrors(resultsByViolationType);
+        printErrors(resultsBySeverity);
 
         writeResults(results);
 
         // Check if we should halt the build due to validation errors
         for (Severity severity : failOn)
         {
-            final int size = Optional.ofNullable(resultsByViolationType.get(severity)).map(Collection::size).orElse(0);
+            final int size = Optional.ofNullable(resultsBySeverity.get(severity)).map(Map::values).map(Collection::size).orElse(0);
             if (size > 0)
             {
                 throw new MojoFailureException("Failing build due to " + size + " errors with severity " + severity);
@@ -143,97 +169,121 @@ public class ZallyMojo extends AbstractMojo
         }
     }
 
+    private void printInfo(String message)
+    {
+        getLog().info("");
+        getLog().info(message);
+    }
+
+    private void printErrors(Map<Severity, Map<CheckDetails, List<Result>>> results)
+    {
+        final List<String> violations = new LinkedList<>();
+        results.forEach((severity, res) ->
+                res.forEach((checkDetails, resultList) ->
+                        resultList.forEach(result ->
+                                violations.add(checkDetails.getRule().id()
+                                        + " - " + severity
+                                        + " - " + checkDetails.getInstance().getClass().getSimpleName()
+                                        + " - " + result.getDescription()
+                                        + " - " + result.getPointer()))));
+
+        printHeader("Rule violations (" + violations.size() + ")");
+        violations.forEach(v -> getLog().info(v));
+    }
+
+    private void printHeader(String message)
+    {
+        getLog().info("");
+        getLog().info(message);
+        getLog().info(StringUtils.repeat("-", message.length()));
+    }
+
     private Config parseConfigMap(Map<String, String> ruleConfig)
     {
-        final Map<String, String> m = ruleConfig != null ? ruleConfig : Collections.emptyMap();
-        final Map<String, Map> configurations = new LinkedHashMap<>();
+        final Map<String, String> m = ruleConfig != null ? ruleConfig : new TreeMap<>();
+        final Map<String, Map<?, ?>> configurations = new LinkedHashMap<>();
         for (Map.Entry<String, String> e : m.entrySet())
         {
-            try
-            {
-                configurations.put(e.getKey(), mapper.readValue(e.getValue(), Map.class));
-            }
-            catch (JsonProcessingException jsonProcessingException)
-            {
-                throw new UncheckedIOException("Unable to parse configuration for rule name " + e.getKey(), jsonProcessingException);
-            }
+            final Map<?, ?> config = loadConfig(e.getKey(), e.getValue());
+            Optional.ofNullable(config).ifPresent(c -> configurations.put(e.getKey(), c));
         }
         return ConfigFactory.parseMap(configurations);
     }
 
-    private void printErrors(Map<Severity, List<Result>> resultsByViolationType)
+    private void printErrorDescriptionsWithLink(List<RuleDetails> rules)
     {
-        for (Severity severity : Severity.values())
-        {
-            Optional.ofNullable(resultsByViolationType.get(severity))
-                    .ifPresent(s ->
-                    {
-                        getLog().warn("");
-                        final String errorHeader = "Severity " + severity.name() + " (" + s.size() + ")";
-                        getLog().warn(errorHeader);
-                        getLog().warn(StringUtils.repeat("-", errorHeader.length()));
-                        for (final Result result : s)
-                        {
-                            getLog().warn(toViolationLine(result));
-                        }
-                    });
-        }
-    }
-
-    private void printErrorDescriptionsWithLink(Map<String, List<Result>> errorsOccurred)
-    {
-        final List<String> errorDescriptionsWithLink = errorsOccurred
-                .keySet()
+        final List<String> errorDescriptionsWithLink = rules
                 .stream()
-                .map(id ->
-                {
-                    final Result first = errorsOccurred.get(id).get(0);
-                    return first.getId() + " - " + first.getViolationType() + " - " + first.getTitle() + " - " + first.getUrl();
-                }).sorted()
+                .map(rule ->
+                        rule.getRule().id() + " - "
+                                + rule.getRule().severity().name() + " - "
+                                + rule.getRule().title() + " - "
+                                + rule.getRuleSet().getUrl()).sorted()
                 .collect(Collectors.toList());
 
-        getLog().info("");
-        getLog().info("Error descriptions");
-        getLog().info("------------------");
+        printHeader("Rules (" + rules.size() + ")");
         errorDescriptionsWithLink.forEach(i -> getLog().info(i));
     }
 
-    private void printIgnoredRulesInfo(List<RuleDetails> rules)
+    private void printSkippedRulesInfo(List<RuleDetails> rules)
     {
-        final Map<String, RuleDetails> ignored = new LinkedHashMap<>();
-        ignore.forEach(i -> ignored.put(i, rules.stream().filter(r -> r.getRule().id().equals(i)).findFirst().orElse(null)));
-        final List<String> ignoredDescription =
-                ignored
-                        .values()
+        final Set<String> skipped = new LinkedHashSet<>();
+        skipRules.forEach(ruleName ->
+        {
+            if (rules.stream().anyMatch(r ->
+            {
+                final String ruleClassName = r.getInstance().getClass().getSimpleName();
+                final boolean ruleNameMatch = ruleClassName.equals(ruleName);
+                final boolean isSkipped = skipRules.contains(ruleClassName);
+                return ruleNameMatch && isSkipped;
+            }))
+            {
+                skipped.add(ruleName);
+            }
+            else
+            {
+                getLog().warn("Requested to skip rule '" + ruleName + "', but no such rule is known.");
+            }
+        });
+
+        final List<String> skippedDescription =
+                rules
                         .stream()
-                        .filter(Objects::nonNull)
+                        .filter(r -> skipped.contains(r.getInstance().getClass().getSimpleName()))
                         .sorted(Comparator.comparing(a -> a.getRule().id()))
-                        .map(d -> d.getRule().id() + " - " + d.getRule().severity() + " - " + d.getRule().title())
+                        .map(d -> d.getRule().id() + " - " + d.getInstance().getClass().getSimpleName() + " - " + d.getRule().severity() + " - " + d.getRule().title())
                         .collect(Collectors.toList());
-        getLog().info("");
-        getLog().info("Ignored rules ");
-        getLog().info("--------------");
 
-        ignoredDescription.forEach(i -> getLog().info(i));
+        if (!skippedDescription.isEmpty())
+        {
+            printHeader("Skipped rules (" + skippedDescription.size() + ")");
+            skippedDescription.forEach(i -> getLog().info(i));
+        }
     }
 
-    private String toViolationLine(Result result)
+    private Map<String, Object> loadConfig(final String ruleName, final String ruleConfig)
     {
-        return result.getId() + " - " + result.getDescription() + " - " + result.getPointer();
+        try
+        {
+            return mapper.readValue(ruleConfig, Map.class);
+        }
+        catch (JsonProcessingException e)
+        {
+            throw new UncheckedIOException("Unable to parse configuration for rule name " + ruleName, e);
+        }
     }
 
-    private void writeResults(List<Result> results)
+    private void writeResults(Map<CheckDetails, List<Result>> results)
     {
         if (resultFile != null && !resultFile.trim().equals(""))
         {
             try
             {
-                getLog().info("");
-                getLog().info("Writing result file to " + resultFile);
+                printInfo("Writing result file to " + resultFile);
                 getLog().info("");
                 final Path target = Paths.get(resultFile);
                 Files.createDirectories(target.getParent());
-                Files.writeString(target, mapper.writeValueAsString(results));
+                Files.writeString(target, mapper.writeValueAsString(results.values().stream().filter(r -> !r.isEmpty()).collect(Collectors.toList())));
             }
             catch (IOException e)
             {
@@ -242,11 +292,11 @@ public class ZallyMojo extends AbstractMojo
         }
     }
 
-    private List<Result> validate(ZallyRunner zallyRunner, String url)
+    private Map<CheckDetails, List<Result>> validate(ZallyRunner zallyRunner, final Set<String> skipped, String url)
     {
         try
         {
-            return zallyRunner.validate(url);
+            return zallyRunner.validate(url, skipped);
         }
         catch (IOException e)
         {

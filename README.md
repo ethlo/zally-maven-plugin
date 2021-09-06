@@ -61,6 +61,7 @@ Unofficial maven plugin using [Zally](https://github.com/zalando/zally) for Open
 ```
 
 ## Example output
+
 ```shell
 [info] Analyzing file 'modified_petstore/petstore.yaml'
 [info] API hierarchy:

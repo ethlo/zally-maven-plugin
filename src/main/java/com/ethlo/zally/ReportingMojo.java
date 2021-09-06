@@ -29,14 +29,9 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-
 @Mojo(threadSafe = true, name = "report", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
 public class ReportingMojo extends AbstractMojo
 {
-    private final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-
     @Parameter(required = true, defaultValue = "${project.basedir}/src/main/resources/api.yaml", property = "zally.source")
     private String source;
 
