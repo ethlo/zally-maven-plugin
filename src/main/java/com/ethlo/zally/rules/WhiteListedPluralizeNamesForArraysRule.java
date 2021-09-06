@@ -65,7 +65,6 @@ public class WhiteListedPluralizeNamesForArraysRule
     {
         return getAllSchemas(context.getApi()).entrySet().stream()
                 .filter(it -> "array".equals(it.getValue().getType()))
-                //.peek(it -> System.out.println(it.getKey() + " - " + it.getValue()))
                 .filter(it -> whiteList.contains(it.getKey()))
                 .filter(it -> !PlingStemmer.isPlural(it.getKey()))
                 .map(it -> context.violation("Array property name appears to be singular: " + it.getKey(), it.getValue()))

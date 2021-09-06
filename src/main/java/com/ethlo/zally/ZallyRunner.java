@@ -52,14 +52,10 @@ import io.swagger.v3.oas.models.OpenAPI;
 
 public class ZallyRunner
 {
-    //private final RulesManager rulesManager;
-    private final Config ruleConfigs;
     private final List<RuleDetails> rules;
 
     public ZallyRunner(final Config ruleConfigs, final Log logger)
     {
-        this.ruleConfigs = ruleConfigs;
-
         this.rules = new LinkedList<>();
         final List<Class<?>> ruleClasses = loadRuleClasses();
         for (Class<?> ruleClass : ruleClasses)
