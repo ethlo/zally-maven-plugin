@@ -54,9 +54,12 @@ public class ZallyRunner
 {
     private final List<RuleDetails> rules;
 
+    private final Log logger;
+
     public ZallyRunner(final Config ruleConfigs, final Log logger)
     {
         this.rules = new LinkedList<>();
+        this.logger = logger;
         final List<Class<?>> ruleClasses = loadRuleClasses();
         for (Class<?> ruleClass : ruleClasses)
         {
@@ -117,6 +120,13 @@ public class ZallyRunner
                 //noinspection unchecked
                 for (Violation violation : (Iterable<? extends Violation>) result)
                 {
+                    // Ignore violations if there are x-zally-ignore markers.
+                    if (context.isIgnored(violation.getPointer(), checkDetails.getRule().id())
+                            || context.isIgnored(violation.getPointer(), "*"))
+                    {
+                        logger.info(String.format("Ignore violation, rule = %s, at %s", checkDetails.getRule().id(), violation.getPointer()));
+                        continue;
+                    }
                     violationList.add(handleViolation(checkDetails, violation));
                 }
             }
