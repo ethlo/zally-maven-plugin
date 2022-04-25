@@ -18,9 +18,10 @@ package com.ethlo.zally;/*-
  * #L%
  */
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import static com.ethlo.zally.ExtractMojo.load;
+
 import java.util.Arrays;
+import java.util.Optional;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoFailureException;
@@ -28,6 +29,8 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
+
+import io.swagger.v3.oas.models.OpenAPI;
 
 @Mojo(threadSafe = true, name = "report", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
 public class ReportingMojo extends AbstractMojo
@@ -44,25 +47,16 @@ public class ReportingMojo extends AbstractMojo
     @Override
     public void execute() throws MojoFailureException
     {
-        if (skip)
+        final Optional<OpenAPI> loaded = load(getLog(), skip, source);
+
+        loaded.ifPresent(openAPI ->
         {
-            getLog().info("Skipping execution as requested");
-            return;
-        }
-
-        final boolean existsOnClassPath = getClass().getClassLoader().getResourceAsStream(source) != null;
-        final boolean existsOnFilesystem = Files.exists(Paths.get(source));
-        if (!existsOnClassPath && !existsOnFilesystem)
-        {
-            throw new MojoFailureException("The specified source file could not be found: " + source);
-        }
-
-        getLog().info("Analyzing file '" + source + "'");
-
-        getLog().info("");
-        getLog().info("API path hierarchy:");
-        final String hierarchy = new ApiReporter(new OpenApiParser().parse(source)).render();
-        Arrays.stream(hierarchy.split("\n")).forEach(line -> getLog().info(line));
-        getLog().info("");
+            getLog().info("Analyzing file '" + source + "'");
+            getLog().info("");
+            getLog().info("API path hierarchy:");
+            final String hierarchy = new ApiReporter(new OpenApiParser().parse(source)).render();
+            Arrays.stream(hierarchy.split("\n")).forEach(line -> getLog().info(line));
+            getLog().info("");
+        });
     }
 }

@@ -24,13 +24,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -62,15 +60,6 @@ public class ApiReporter
         operations.put(Method.PATCH, value.getPatch());
         operations.values().removeIf(Objects::isNull);
         return operations;
-    }
-
-    private Optional<Map.Entry<Method, Operation>> getOperationByMethod(Method method, Operation operation)
-    {
-        if (operation != null)
-        {
-            return Optional.of(new AbstractMap.SimpleEntry<>(method, operation));
-        }
-        return Optional.empty();
     }
 
     public String render()
