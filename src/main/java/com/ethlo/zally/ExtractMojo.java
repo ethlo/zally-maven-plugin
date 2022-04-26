@@ -29,8 +29,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
@@ -47,6 +49,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import io.swagger.v3.core.filter.AbstractSpecFilter;
 import io.swagger.v3.core.filter.SpecFilter;
 import io.swagger.v3.core.model.ApiDescription;
+import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
@@ -57,16 +60,22 @@ public class ExtractMojo extends AbstractMojo
     @Parameter(required = true, defaultValue = "${project.basedir}/src/main/resources/api.yaml", property = "zally.source")
     private String source;
 
-    @Parameter(property = "targetFile")
-    private File targetFile;
+    @Parameter(property = "outputFile")
+    private File outputFile;
 
-    @Parameter(property = "zally.skip", defaultValue = "false")
+    @Parameter(property = "configFile")
+    private File configFile;
+
+    @Parameter(property = "skip", defaultValue = "false")
     private boolean skip;
 
     @Parameter(property = "filters")
-    private List<String> filters;
+    private List<OperationFilter> filters;
 
-    @Parameter(property = "name", required = true)
+    @Parameter(property = "description")
+    private String description;
+
+    @Parameter(property = "name")
     private String name;
 
     @Parameter(property = "title")
@@ -75,21 +84,59 @@ public class ExtractMojo extends AbstractMojo
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     private MavenProject project;
 
+    @Parameter(defaultValue = "${mojoExecution}", readonly = true, required = true)
+    private MojoExecution mojoExecution;
+
+    private static final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory()
+            .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
+            .enable(YAMLGenerator.Feature.SPLIT_LINES)
+            .enable(YAMLGenerator.Feature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS))
+            .setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
     private static final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void execute() throws MojoFailureException
     {
-        final Optional<OpenAPI> loaded = load(getLog(), skip, source);
+        final Optional<OpenAPI> loaded = load(getLog(), skip, source, false);
 
-        if (targetFile == null)
+        if (name == null)
         {
-            targetFile = Paths.get(project.getBuild().getOutputDirectory()).resolve(name + ".yaml").toFile();
+            name = mojoExecution.getExecutionId();
+        }
+
+        if (outputFile == null)
+        {
+            outputFile = Paths.get(project.getBuild().getOutputDirectory()).resolve(name + ".yaml").toFile();
+        }
+
+        if (configFile != null)
+        {
+            try
+            {
+                final ExtractionDefinition extractionDefinition = yamlMapper.readValue(configFile, ExtractionDefinition.class);
+                if (this.title == null)
+                {
+                    this.title = extractionDefinition.getTitle();
+                }
+
+                if (this.description == null)
+                {
+                    this.description = extractionDefinition.getDescription();
+                }
+
+                this.filters = extractionDefinition.getFilters();
+            }
+            catch (IOException exc)
+            {
+                throw new UncheckedIOException(exc);
+            }
         }
 
         loaded.ifPresent(openAPI ->
         {
-            getLog().info(String.format("Processing filter %s", name));
+            getLog().info(String.format("Processing extraction %s", name));
+            final AtomicInteger totalEvaluated = new AtomicInteger(0);
+            final AtomicInteger totalMatched = new AtomicInteger(0);
             final OpenAPI filtered = new SpecFilter().filter(openAPI, new AbstractSpecFilter()
             {
                 @Override
@@ -100,9 +147,18 @@ public class ExtractMojo extends AbstractMojo
                     final Map<String, Object> extensionMap = new LinkedHashMap<>(Optional.ofNullable(pathItem.getExtensions()).orElse(Collections.emptyMap()));
                     extensionMap.putAll(operation.getExtensions());
                     final OperationData operationData = new OperationData(operation, api, extensionMap);
-                    if (filters.stream().anyMatch(filter -> match(filter, operationData)))
+                    if (filters.stream().anyMatch(filter ->
                     {
-                        getLog().info(String.format("Including operation %s in %s", operation.getOperationId(), name));
+                        final boolean matched = match(filter, operationData);
+                        if (matched)
+                        {
+                            totalMatched.incrementAndGet();
+                            getLog().info(String.format("Including '%s' in '%s' because '%s'", operation.getOperationId(), name, filter.asString()));
+                        }
+                        totalEvaluated.incrementAndGet();
+                        return matched;
+                    }))
+                    {
                         return Optional.of(operation);
                     }
                     return Optional.empty();
@@ -116,16 +172,15 @@ public class ExtractMojo extends AbstractMojo
             }, null, null, null);
 
 
-            // Set title of document
             Optional.ofNullable(title).ifPresent(t -> filtered.getInfo().setTitle(t));
+            Optional.ofNullable(description).ifPresent(t -> filtered.getInfo().setDescription(t));
+            getLog().info(String.format("Included %s/%s API operations in extract", totalMatched.get(), totalEvaluated.get()));
 
             try
             {
-                getLog().info("Writing extracted APIs to " + targetFile);
-                Files.createDirectories(targetFile.toPath().getParent());
-                new ObjectMapper(new YAMLFactory()
-                        .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)).
-                        setSerializationInclusion(JsonInclude.Include.NON_EMPTY).writeValue(targetFile, filtered);
+                getLog().info("Writing extracted APIs to " + outputFile);
+                Files.createDirectories(outputFile.toPath().getParent());
+                Yaml.mapper().writeValue(outputFile, filtered);
             }
             catch (IOException e)
             {
@@ -134,11 +189,10 @@ public class ExtractMojo extends AbstractMojo
         });
     }
 
-    public static boolean match(final String filter, final OperationData data)
+    public static boolean match(final OperationFilter filter, final OperationData data)
     {
-        final String[] expression = filter.split("=");
-        final String path = expression[0].startsWith("/") ? expression[0] : "/" + expression[0];
-        final String regexp = expression[1];
+        final String path = filter.getPointer().startsWith("/") ? filter.getPointer() : "/" + filter.getPointer();
+        final String regexp = filter.getExpression();
         try
         {
             final JsonNode jsonNode = mapper.readTree(mapper.writeValueAsString(data));
@@ -148,7 +202,7 @@ public class ExtractMojo extends AbstractMojo
                 final Iterator<String> fieldNames = value.fieldNames();
                 while (fieldNames.hasNext())
                 {
-                    if (fieldNames.next().matches(regexp))
+                    if (filter.isMatch(fieldNames.next()))
                     {
                         return true;
                     }
@@ -159,7 +213,7 @@ public class ExtractMojo extends AbstractMojo
                 final Iterator<JsonNode> elements = value.elements();
                 while (elements.hasNext())
                 {
-                    if (elements.next().textValue().matches(regexp))
+                    if (filter.isMatch(elements.next().textValue()))
                     {
                         return true;
                     }
@@ -167,7 +221,7 @@ public class ExtractMojo extends AbstractMojo
             }
             else if (value.isTextual())
             {
-                return value.textValue().matches(regexp);
+                return filter.isMatch(value.textValue());
             }
 
             return false;
@@ -178,7 +232,7 @@ public class ExtractMojo extends AbstractMojo
         }
     }
 
-    public static Optional<OpenAPI> load(final Log log, final boolean skip, final String source) throws MojoFailureException
+    public static Optional<OpenAPI> load(final Log log, final boolean skip, final String source, final boolean inlined) throws MojoFailureException
     {
         if (skip)
         {
@@ -194,6 +248,6 @@ public class ExtractMojo extends AbstractMojo
         }
 
         log.info("Reading file '" + source + "'");
-        return Optional.of(new OpenApiParser().parse(source));
+        return Optional.of(inlined ? new OpenApiParser().parseInlined(source) : new OpenApiParser().parse(source));
     }
 }

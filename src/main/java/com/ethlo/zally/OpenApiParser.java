@@ -26,12 +26,21 @@ import io.swagger.v3.parser.util.ResolverFully;
 
 public class OpenApiParser
 {
-    public OpenAPI parse(String url)
+    public OpenAPI parseInlined(String url)
     {
         final ParseOptions parseOptions = new ParseOptions();
         parseOptions.setResolve(true);
         final OpenAPI parseResult = new OpenAPIV3Parser().read(url);
         new ResolverFully(true).resolveFully(parseResult);
+        return parseResult;
+    }
+
+    public OpenAPI parse(final String url)
+    {
+        final ParseOptions parseOptions = new ParseOptions();
+        parseOptions.setResolve(true);
+        final OpenAPI parseResult = new OpenAPIV3Parser().read(url);
+        //new ResolverFully(true).resolveFully(parseResult);
         return parseResult;
     }
 }

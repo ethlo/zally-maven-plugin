@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -43,7 +44,6 @@ import org.zalando.zally.rule.api.Violation;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import edu.emory.mathcs.backport.java.util.Collections;
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
@@ -70,7 +70,7 @@ public class ZallyRunner
 
     public Map<CheckDetails, List<Result>> validate(String url, final Set<String> skipped) throws IOException
     {
-        final OpenAPI openApi = new OpenApiParser().parse(url);
+        final OpenAPI openApi = new OpenApiParser().parseInlined(url);
         final Context context = new DefaultContext("", openApi, null);
 
         final Map<CheckDetails, List<Result>> returnValue = new LinkedHashMap<>();

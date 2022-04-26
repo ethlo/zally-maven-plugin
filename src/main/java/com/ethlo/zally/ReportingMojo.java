@@ -47,14 +47,14 @@ public class ReportingMojo extends AbstractMojo
     @Override
     public void execute() throws MojoFailureException
     {
-        final Optional<OpenAPI> loaded = load(getLog(), skip, source);
+        final Optional<OpenAPI> loaded = load(getLog(), skip, source, true);
 
         loaded.ifPresent(openAPI ->
         {
             getLog().info("Analyzing file '" + source + "'");
             getLog().info("");
             getLog().info("API path hierarchy:");
-            final String hierarchy = new ApiReporter(new OpenApiParser().parse(source)).render();
+            final String hierarchy = new ApiReporter(new OpenApiParser().parseInlined(source)).render();
             Arrays.stream(hierarchy.split("\n")).forEach(line -> getLog().info(line));
             getLog().info("");
         });

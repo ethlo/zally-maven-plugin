@@ -39,7 +39,7 @@ public class WhiteListedPluralizeNamesForArraysRuleTest
     public void checkArrayPropertyNamesArePlural()
     {
         final String url = "modified_petstore/petstore.yaml";
-        final OpenAPI openApi = new OpenApiParser().parse(url);
+        final OpenAPI openApi = new OpenApiParser().parseInlined(url);
         final Context context = new DefaultContext("", openApi, null);
         final List<Violation> violations = new WhiteListedPluralizeNamesForArraysRule(ConfigFactory.empty()).checkArrayPropertyNamesArePlural(context);
         assertThat(violations).isEmpty();
