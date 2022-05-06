@@ -308,7 +308,7 @@ public class ZallyMojo extends AbstractMojo
     }
 
     private List<String> gatherViolations(Map<Severity, Map<CheckDetails, List<Result>>> results){
-        final List<String> violations = new LinkedList<>();
+        final List<String> violations = new ArrayList<>();
         results.forEach((severity, res) ->
                 res.forEach((checkDetails, resultList) ->
                         resultList.forEach(result ->
