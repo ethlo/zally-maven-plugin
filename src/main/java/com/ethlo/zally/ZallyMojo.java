@@ -186,7 +186,8 @@ public class ZallyMojo extends AbstractMojo
                                         + " - " + severity
                                         + " - " + checkDetails.getInstance().getClass().getSimpleName()
                                         + " - " + result.getDescription()
-                                        + " - " + result.getPointer()))));
+                                        + " - " + result.getPointer()
+                                        + " - " + result.getLines()))));
 
         printHeader("Rule violations (" + violations.size() + ")");
         violations.forEach(v -> getLog().warn(v));

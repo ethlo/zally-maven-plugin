@@ -89,7 +89,7 @@ public class ZallyRunner
                     if (checkAnnotation != null && method.getParameterTypes().length == 1 && method.getParameterTypes()[0] == Context.class)
                     {
                         final List<Result> violationList = new LinkedList<>();
-                        final CheckDetails checkDetails = performCheck(context, violationList, instance, ruleDetails.getRule(), ruleDetails.getRuleSet(), method, checkAnnotation);
+                        final CheckDetails checkDetails = performCheck(context, violationList, instance, ruleDetails.getRule(), ruleDetails.getRuleSet(), method, checkAnnotation, url);
                         returnValue.put(checkDetails, violationList);
                     }
                 }
@@ -100,7 +100,7 @@ public class ZallyRunner
     }
 
     @NotNull
-    private CheckDetails performCheck(Context context, List<Result> violationList, Object instance, Rule ruleAnnotation, RuleSet ruleSet, Method method, Check checkAnnotation)
+    private CheckDetails performCheck(Context context, List<Result> violationList, Object instance, Rule ruleAnnotation, RuleSet ruleSet, Method method, Check checkAnnotation, String url)
     {
         final CheckDetails checkDetails = new CheckDetails(ruleSet, ruleAnnotation, instance, checkAnnotation, method);
 
@@ -127,12 +127,12 @@ public class ZallyRunner
                         logger.info(String.format("Ignore violation, rule = %s, at %s", checkDetails.getRule().id(), violation.getPointer()));
                         continue;
                     }
-                    violationList.add(handleViolation(checkDetails, violation));
+                    violationList.add(handleViolation(url, checkDetails, violation));
                 }
             }
             else if (result instanceof Violation)
             {
-                violationList.add(handleViolation(checkDetails, (Violation) result));
+                violationList.add(handleViolation(url, checkDetails, (Violation) result));
             }
         }
         return checkDetails;
@@ -180,11 +180,16 @@ public class ZallyRunner
         }
     }
 
-    private Result handleViolation(final CheckDetails details, Violation violation)
+    private Result handleViolation(String url, final CheckDetails details, Violation violation)
     {
-        // TODO: Handle pointers better to make it easier to know where the error is
-        //final JsonPointer pointer = violation.getPointer();
-        //System.out.println(pointer.toString() + " - " + pointer.toString().replace("~1", "/"));
+        JsonPointerLocator locator = new JsonPointerLocator("");
+        try {
+            // throw new IOException();
+            locator = new JsonPointerLocator(Files.readString(Paths.get(url)));
+        } catch (IOException e) {
+            logger.warn("Could not read File");;
+            e.printStackTrace();
+        }
 
         return new Result(
                 details.getRule().id(),
@@ -193,7 +198,7 @@ public class ZallyRunner
                 violation.getDescription(),
                 details.getCheck().severity(),
                 violation.getPointer(),
-                null/*locator.locate(violation.getPointer())*/
+                locator.locate(violation.getPointer())
         );
     }
 
