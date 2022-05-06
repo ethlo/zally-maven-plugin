@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -308,7 +309,7 @@ public class ZallyMojo extends AbstractMojo
     }
 
     private List<String> gatherViolations(Map<Severity, Map<CheckDetails, List<Result>>> results){
-        final List<String> violations = new LinkedList<>();
+        final List<String> violations = new ArrayList<>();
         results.forEach((severity, res) ->
                 res.forEach((checkDetails, resultList) ->
                         resultList.forEach(result ->

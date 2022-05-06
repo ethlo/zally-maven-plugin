@@ -91,7 +91,7 @@ public class ZallyRunner
 
                     if (checkAnnotation != null && method.getParameterTypes().length == 1 && method.getParameterTypes()[0] == Context.class)
                     {
-                        final List<Result> violationList = new LinkedList<>();
+                        final List<Result> violationList = new ArrayList<>();
                         final CheckDetails checkDetails = performCheck(context, violationList, instance, ruleDetails.getRule(), ruleDetails.getRuleSet(), method, checkAnnotation, url);
                         returnValue.put(checkDetails, violationList);
                     }
