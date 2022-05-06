@@ -23,6 +23,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -153,9 +154,9 @@ public class ZallyMojo extends AbstractMojo
             }
         });
 
-        printErrors(resultsBySeverity);
+        printErrors(gatherViolations(resultsBySeverity));
 
-        writeResults(results);
+        writeResults(gatherViolations(resultsBySeverity));
 
         // Check if we should halt the build due to validation errors
         for (Severity severity : failOn)
@@ -176,19 +177,8 @@ public class ZallyMojo extends AbstractMojo
         getLog().info(message);
     }
 
-    private void printErrors(Map<Severity, Map<CheckDetails, List<Result>>> results)
+    private void printErrors(List<String> violations)
     {
-        final List<String> violations = new LinkedList<>();
-        results.forEach((severity, res) ->
-                res.forEach((checkDetails, resultList) ->
-                        resultList.forEach(result ->
-                                violations.add(checkDetails.getRule().id()
-                                        + " - " + severity
-                                        + " - " + checkDetails.getInstance().getClass().getSimpleName()
-                                        + " - " + result.getDescription()
-                                        + " - " + result.getPointer()
-                                        + " - " + result.getLines()))));
-
         printHeader("Rule violations (" + violations.size() + ")");
         violations.forEach(v -> getLog().warn(v));
         getLog().warn("");
@@ -277,7 +267,7 @@ public class ZallyMojo extends AbstractMojo
         }
     }
 
-    private void writeResults(Map<CheckDetails, List<Result>> results)
+    private void writeResults(List<String> violations)
     {
         if (resultFile != null && !resultFile.trim().equals(""))
         {
@@ -286,11 +276,20 @@ public class ZallyMojo extends AbstractMojo
                 printInfo("Writing result file to " + resultFile);
                 getLog().info("");
                 final Path target = Paths.get(resultFile);
-                Files.createDirectories(target.getParent());
-                Files.writeString(target, mapper.writeValueAsString(results.values().stream().filter(r -> !r.isEmpty()).collect(Collectors.toList())));
+                Files.createDirectories(target.toAbsolutePath().getParent());
+                Files.writeString(target, "Rule violations (" + violations.size() + ")" + System.lineSeparator());
+                violations.forEach(v -> {
+                    try {
+                        Files.writeString(target, v + System.lineSeparator() , StandardOpenOption.APPEND);
+                    } catch (IOException e) {
+                        getLog().error("Could not write full output File", e);
+                        e.printStackTrace();
+                    }
+                });
             }
             catch (IOException e)
             {
+                getLog().error(e);
                 throw new UncheckedIOException(e);
             }
         }
@@ -306,5 +305,19 @@ public class ZallyMojo extends AbstractMojo
         {
             throw new UncheckedIOException(e.getMessage(), e);
         }
+    }
+
+    private List<String> gatherViolations(Map<Severity, Map<CheckDetails, List<Result>>> results){
+        final List<String> violations = new LinkedList<>();
+        results.forEach((severity, res) ->
+                res.forEach((checkDetails, resultList) ->
+                        resultList.forEach(result ->
+                                violations.add(checkDetails.getRule().id()
+                                        + " - " + severity
+                                        + " - " + checkDetails.getInstance().getClass().getSimpleName()
+                                        + " - " + result.getDescription()
+                                        + " - " + result.getPointer()
+                                        + " - " + result.getLines()))));
+        return violations;
     }
 }
