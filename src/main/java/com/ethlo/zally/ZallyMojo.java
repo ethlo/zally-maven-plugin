@@ -74,10 +74,10 @@ public class ZallyMojo extends AbstractMojo
     @Parameter(defaultValue = "${project}", required = true, readonly = true)
     private MavenProject project;
 
-    @Parameter
+    @Parameter(property = "zally.ruleConfigs")
     private Map<String, String> ruleConfigs;
 
-    @Parameter
+    @Parameter(property = "zally.skipRules")
     private Set<String> skipRules;
 
     public ZallyMojo()
