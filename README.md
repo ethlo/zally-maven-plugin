@@ -40,6 +40,8 @@ Unofficial maven plugin using [Zally](https://github.com/zalando/zally) for Open
                 - self
             </PluralizeResourceNamesRule>
         </ruleConfig>
+        <!-- Alternatively rules can be configured with configuration file -->
+        <rulesConfigLocation>reference.conf</rulesConfigLocation>
         <!-- Write the result of the validation to file. Optional-->
         <resultFile>target/api_validation_result.yaml</resultFile>
     </configuration>

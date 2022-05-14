@@ -79,6 +79,9 @@ public class ZallyMojo extends AbstractMojo
     @Parameter(property = "zally.ruleConfigs")
     private Map<String, String> ruleConfigs;
 
+    @Parameter(property = "zally.rulesConfigLocation")
+    private String rulesConfigLocation;
+
     @Parameter(property = "zally.skipRules")
     private Set<String> skipRules;
 
@@ -97,7 +100,17 @@ public class ZallyMojo extends AbstractMojo
             return;
         }
 
-        final Config config = parseConfigMap(ruleConfigs).withFallback(ConfigFactory.load("reference"));
+        Config config = parseConfigMap(ruleConfigs);
+        if (rulesConfigLocation != null)
+        {
+            Path rulesConfigPath = Paths.get(rulesConfigLocation);
+            if (!Files.exists(rulesConfigPath))
+            {
+                throw new MojoFailureException("The specified rules config file could not be found: " + rulesConfigLocation);
+            }
+            config = config.withFallback(ConfigFactory.parseFile(rulesConfigPath.toFile()).resolve());
+        }
+        config = config.withFallback(ConfigFactory.load("reference"));
 
         final ZallyRunner zallyRunner = new ZallyRunner(config, getLog());
 
