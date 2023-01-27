@@ -39,12 +39,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ZallyMojoTest
 {
-    private final String url = "modified_petstore/petstore.yaml";
+    private final String url = "/modified_petstore/petstore.yaml";
 
     @Test
     public void smokeTest() throws IllegalAccessException, IOException
     {
-        final String url = "modified_petstore/petstore.yaml";
+        final String url = "/modified_petstore/petstore.yaml";
         final ZallyMojo mojo = new ZallyMojo();
         FieldUtils.writeField(mojo, "failOn", Arrays.asList(Severity.MUST, Severity.SHOULD), true);
         FieldUtils.writeField(mojo, "source", url, true);
