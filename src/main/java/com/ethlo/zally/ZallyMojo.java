@@ -193,6 +193,11 @@ public class ZallyMojo extends AbstractMojo
 
     private void printErrors(List<String> violations)
     {
+        if (violations.isEmpty())
+        {
+            return;
+        }
+
         printHeader("Rule violations (" + violations.size() + ")");
         violations.forEach(v -> getLog().warn(v));
         getLog().warn("");
