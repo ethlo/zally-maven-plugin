@@ -32,14 +32,14 @@ Unofficial maven plugin using [Zally](https://github.com/zalando/zally) for Open
             <skipRule>SecureAllEndpointsWithScopesRule</skipRule>
             <skipRule>NoVersionInUriRule</skipRule>
         </skipRules>
-        <ruleConfig>
+        <ruleConfigs>
             <!-- NOTE: The rule elements' content can be written in JSON or YAML -->
             <PluralizeResourceNamesRule>
                 whitelist:
                 - current
                 - self
             </PluralizeResourceNamesRule>
-        </ruleConfig>
+        </ruleConfigs>
         <!-- Alternatively rules can be configured with configuration file -->
         <rulesConfigLocation>reference.conf</rulesConfigLocation>
         <!-- Write the result of the validation to file. Optional-->
