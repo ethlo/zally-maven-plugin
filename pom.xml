@@ -35,7 +35,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
-                <version>1.6</version>
+                <version>3.2.7</version>
                 <executions>
                     <execution>
                         <id>sign-artifacts</id>
@@ -82,10 +82,11 @@
             <plugin>
                 <groupId>org.sonatype.central</groupId>
                 <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.8.0</version>
+                <version>0.10.0</version>
                 <extensions>true</extensions>
                 <configuration>
                     <publishingServerId>central</publishingServerId>
+                    <autoPublish>true</autoPublish>
                 </configuration>
             </plugin>
             <plugin>
@@ -157,18 +158,6 @@
         <connection>scm:git:git@github.com:ethlo/zally-maven-plugin.git</connection>
         <developerConnection>scm:git:git@github.com:ethlo/zally-maven-plugin.git</developerConnection>
     </scm>
-    <distributionManagement>
-        <repository>
-            <id>sonatype-nexus-staging</id>
-            <name>Nexus Release Repository</name>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-        <snapshotRepository>
-            <id>sonatype-nexus-snapshots</id>
-            <name>Nexus Snapshot repository</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-        </snapshotRepository>
-    </distributionManagement>
 
     <dependencies>
         <dependency>
@@ -229,4 +218,13 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <profiles>
+        <!-- mvn -Prelease deploy: signs and publishes to Maven Central via the Central Portal -->
+        <profile>
+            <id>release</id>
+            <properties>
+                <gpg.skip>false</gpg.skip>
+            </properties>
+        </profile>
+    </profiles>
 </project>
