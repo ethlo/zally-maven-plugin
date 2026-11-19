@@ -18,7 +18,7 @@ Unofficial maven plugin using [Zally](https://github.com/zalando/zally) for Open
 <plugin>
     <groupId>com.ethlo.zally</groupId>
     <artifactId>zally-maven-plugin</artifactId>
-    <version>VERSION</version>
+    <version>2.1.1</version>
     <configuration>
         <!--Configure severities that fail the build. Default is MUST, SHOULD -->
         <failOn>MUST</failOn>
